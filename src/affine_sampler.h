@@ -38,6 +38,8 @@
 #include <assert.h>
 #include <omp.h>
 
+#include <unistd.h>
+
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
 
@@ -262,7 +264,7 @@ public:
 	void print_diagnostics();
 	void print_state() { for(unsigned int i=0; i<N_samplers; i++) { sampler[i]->print_state(); } }
 	void print_clusters() { for(unsigned int i=0; i<N_samplers; i++) { std::cout << std::endl; sampler[i]->print_clusters(); } } 
-	TAffineSampler<TParams, TLogger>* const get_sampler(unsigned int index) { assert(index < N_samplers); return sampler[index]; }
+	TAffineSampler<TParams, TLogger>* get_sampler(unsigned int index) { assert(index < N_samplers); return sampler[index]; }
 	
 	// Calculate the GR diagnostic on a transformed space
 	void calc_GR_transformed(std::vector<double>& GR, TTransformParamSpace* transf);
@@ -586,24 +588,6 @@ void TAffineSampler<TParams, TLogger>::update_ensemble_cov() {
 			}
 		}
 		
-		/*for(unsigned int j=0; j<N; j++) {
-			for(unsigned int k=j; k<N; k++) {
-				tmp = 0.;
-				sum_weight = 0;
-				for(unsigned int n=0; n<L; n++) {
-					weight = exp(X[n].pi);
-					tmp += weight * (X[n].element[j] - ensemble_mean[j]) * (X[n].element[k] - ensemble_mean[k]);
-					sum_weight += weight;
-				}
-				tmp /= sum_weight;
-				if(k == j) {
-					gsl_matrix_set(ensemble_cov, j, k, tmp);//*1.005 + 0.005);	// Small factor added in to avoid singular matrices
-				} else {
-					gsl_matrix_set(ensemble_cov, j, k, tmp);
-					gsl_matrix_set(ensemble_cov, k, j, tmp);
-				}
-			}
-		}*/
 	} else {
 		for(unsigned int j=0; j<N; j++) {
 			for(unsigned int k=j; k<N; k++) {
@@ -966,6 +950,12 @@ void TAffineSampler<TParams, TLogger>::step_affine(bool record_step) {
 		
 		// Update sampler j
 		if(accept[j]) {
+		    if(is_neg_inf_replacement(Y[j].pi)) {
+		        #pragma omp critical (cout)
+		        {
+		        std::cerr << "!!! Accepted -infinity point! (affine step)" << std::endl;
+		        }
+		    }
 			if(record_step) {
 				chain.add_point(X[j].element, X[j].pi, (double)(X[j].weight));
 				
@@ -1027,7 +1017,9 @@ void TAffineSampler<TParams, TLogger>::step_replacement(bool record_step, bool u
 			}
 			
 			// Decide whether to accept or reject
-			if(alpha > 0.) {	// Accept if probability of acceptance is greater than unity
+			if(is_neg_inf_replacement(Y[j].pi)) {
+			    accept[j] = false;
+			} else if(alpha > 0.) {	// Accept if probability of acceptance is greater than unity
 				accept[j] = true;
 			} else {
 				p = gsl_rng_uniform(r);
@@ -1060,6 +1052,13 @@ void TAffineSampler<TParams, TLogger>::step_replacement(bool record_step, bool u
 		
 		// Update sampler j
 		if(accept[j]) {
+		    if(is_neg_inf_replacement(Y[j].pi)) {
+		        #pragma omp critical (cout)
+		        {
+		        std::cerr << "!!! Accepted -infinity point! (replacement step)" << std::endl;
+		        }
+		    }
+		    
 			if(record_step) {
 				chain.add_point(X[j].element, X[j].pi, (double)(X[j].weight));
 				
@@ -1136,6 +1135,13 @@ void TAffineSampler<TParams, TLogger>::step_MH(bool record_step) {
 		
 		// Update sampler j
 		if(accept[j]) {
+		    if(is_neg_inf_replacement(Y[j].pi)) {
+		        #pragma omp critical (cout)
+		        {
+		        std::cerr << "!!! Accepted -infinity point! (MH step)" << std::endl;
+		        }
+		    }
+		    
 			if(record_step) {
 				chain.add_point(X[j].element, X[j].pi, (double)(X[j].weight));
 				
@@ -1786,6 +1792,7 @@ inline void seed_gsl_rng(gsl_rng **r) {
 	clock_gettime(CLOCK_REALTIME, &t_seed);
 	long unsigned int seed = 1e9*(long unsigned int)t_seed.tv_sec;
 	seed += t_seed.tv_nsec;
+	seed ^= (long unsigned int)getpid();
 	*r = gsl_rng_alloc(gsl_rng_taus);
 	gsl_rng_set(*r, seed);
 }

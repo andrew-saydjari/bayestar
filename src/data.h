@@ -40,6 +40,8 @@
 //#define __STDC_LIMIT_MACROS
 #include <stdint.h>
 
+#include <unistd.h>
+
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 
@@ -54,20 +56,23 @@ void seed_gsl_rng(gsl_rng **r);
 struct TStellarData {
 	struct TFileData {
 		uint64_t obj_id;
-		double l, b;
-		float mag[NBANDS];
-		float err[NBANDS];
-		float maglimit[NBANDS];
-		uint32_t N_det[NBANDS];
-		float EBV;
+		double l, b;            // Galactic (l, b), in deg
+        float pi, pi_err;       // parallax, in milliarcseconds
+		float mag[NBANDS];      // Observed magnitudes, in mag
+		float err[NBANDS];      // Magnitude uncertainties, in mag
+		float maglimit[NBANDS]; // Limit magnitudes, in mag
+		uint32_t N_det[NBANDS]; // # of detections in each passband
+		float EBV;              // E(B-V), in mag
 	};
 	
 	struct TMagnitudes {
 		uint64_t obj_id;
 		double l, b;
+        double pi, pi_err;
 		double m[NBANDS];
 		double err[NBANDS];
 		double maglimit[NBANDS];
+		double maglim_width[NBANDS];
 		unsigned int N_det[NBANDS];
 		double EBV;
 		double lnL_norm;
@@ -80,6 +85,7 @@ struct TStellarData {
 				m[i] = _m[i];
 				err[i] = _err[i];
 				maglimit[i] = 23.;
+				maglim_width[i] = 0.20;
 				if(err[i] < 9.e9) {	// Ignore missing bands (otherwise, they affect evidence)
 					lnL_norm += 0.9189385332 + log(err[i]);
 				}
@@ -91,10 +97,13 @@ struct TStellarData {
 			obj_id = rhs.obj_id;
 			l = rhs.l;
 			b = rhs.b;
+			pi = rhs.pi;
+			pi_err = rhs.pi_err;
 			for(unsigned int i=0; i<NBANDS; i++) {
 				m[i] = rhs.m[i];
 				err[i] = rhs.err[i];
 				maglimit[i] = rhs.maglimit[i];
+				maglim_width[i] = rhs.maglim_width[i];
 				N_det[i] = rhs.N_det[i];
 			}
 			lnL_norm = rhs.lnL_norm;
@@ -150,8 +159,23 @@ void draw_from_synth_model(size_t nstars, double RV, TGalacticLOSModel& gal_mode
 void draw_from_emp_model(size_t nstars, double RV, TGalacticLOSModel& gal_model, TStellarModel& stellar_model,
                            TStellarData& stellar_data, TExtinctionModel& ext_model, double (&mag_limit)[NBANDS]);
 
-// Return healpix indices of pixels in input file
-void get_input_pixels(std::string fname, std::vector<std::string> &pix_name);
+// Return names of pixels in input file
+void get_input_pixels(
+        std::string fname,
+        std::vector<std::string> &pix_name,
+        const std::string &base="/photometry"
+);
 
+// Return attributes describing pixels in input file, given list of pixel names
+void get_pixel_props(
+        const std::string& fname,
+        const std::vector<std::string>& pix_name,
+        std::vector<double>& l,
+        std::vector<double>& b,
+        std::vector<double>& EBV,
+        std::vector<uint32_t>& nside,
+        std::vector<uint64_t>& healpix_index,
+        const std::string &base="/photometry"
+);
 
 #endif // _STELLAR_DATA_H__

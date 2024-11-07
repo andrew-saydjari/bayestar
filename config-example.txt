@@ -1,6 +1,49 @@
-# Use prior that dust follows modified double exponential disk,
-# as described in Drimmel & Spergel (2001)
-disk-prior = true
+use-gaia = true
 
-# Lower halo fraction
-f_halo = 0.0006
+verbosity = 1
+threads = 1
+
+star-samplers = 10
+
+# star-p-replacement = 0
+
+disk-prior = true
+evidence-cut = 10
+
+mean-RV = 3.3
+
+log-Delta-EBV-min = -24.
+log-Delta-EBV-max = -6.
+sigma-log-Delta-EBV = 1.60
+
+pct-smoothing-min = 0.15
+pct-smoothing-max = 0.50
+
+discrete-los = true
+save-surfs = true
+
+clouds = 0
+regions = 0
+
+L_thin = 2600
+H_thin = 300
+
+f_thick = 0.12
+L_thick = 3600
+H_thick = 900
+
+f_halo = 0.0030
+
+ext-file = PS1_2MASS_Extinction_APOGEE.dat
+template-file = PS1_qz_2MASS_colors.dat
+LF-file = PSMrLF.dat
+
+dsc-n-temperatures = 4
+dsc-beta-spacing = 0.90
+dsc-n-swaps = 2000
+dsc-shift-weight-ladder-logarithmic = false
+dsc-n-save = 100
+dsc-save-all-temperatures = true
+dsc-p-badstar = 0.001
+dsc-central-steps-per-update = 20
+dsc-neighbor-steps-per-update = 5

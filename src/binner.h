@@ -40,8 +40,8 @@
 #include <H5Cpp.h>
 #include <H5Exception.h>
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 // Class for binning sparse data with minimal memory usage. This is especially useful
 // when the domain of the function being binned is of high dimension. In order to achieve
